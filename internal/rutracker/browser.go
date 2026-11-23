@@ -126,7 +126,7 @@ func (b *browserTransport) ensure(ctx context.Context) error {
 	}
 	fmt.Fprintf(os.Stderr, "rutracker-mcp: 使用浏览器访问站点: %s\n", b.exe)
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
+	browserCtx, browserCancel := chromedp.NewContext(allocCtx, chromedp.WithErrorf(func(string, ...interface{}) {}))
 	b.alloc = allocCancel
 	b.browser = browserCancel
 	b.ctx = browserCtx
@@ -182,7 +182,7 @@ func (b *browserTransport) openAndWait(ctx context.Context, raw string) error {
 	if err := b.run(ctx, chromedp.Navigate(raw)); err != nil {
 		return err
 	}
-	deadline := time.Now().Add(45 * time.Second)
+	deadline := time.Now().Add(2 * time.Minute)
 	for {
 		var title string
 		if err := b.run(ctx, chromedp.Title(&title)); err != nil {
@@ -192,7 +192,7 @@ func (b *browserTransport) openAndWait(ctx context.Context, raw string) error {
 			return nil
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("%w: 检查没有在 45 秒内通过. 留着打开的浏览器窗口完成它, 然后重试", ErrBrowser)
+			return fmt.Errorf("%w: 检查没有在 2 分钟内通过. 留着打开的浏览器窗口完成它, 然后重试", ErrBrowser)
 		}
 		select {
 		case <-ctx.Done():
