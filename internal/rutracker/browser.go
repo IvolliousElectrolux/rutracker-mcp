@@ -127,19 +127,12 @@ func (b *browserTransport) ensure(ctx context.Context) error {
 	fmt.Fprintf(os.Stderr, "rutracker-mcp: 使用浏览器访问站点: %s\n", b.exe)
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
-	runCtx, cancel := context.WithTimeout(browserCtx, 45*time.Second)
-	err = chromedp.Run(runCtx, chromedp.Navigate("about:blank"))
-	cancel()
-	if err != nil {
-		browserCancel()
-		allocCancel()
-		return fmt.Errorf("%w: 无法启动浏览器: %s", ErrBrowser, err.Error())
-	}
 	b.alloc = allocCancel
 	b.browser = browserCancel
 	b.ctx = browserCtx
-	if ctx.Err() != nil {
-		return ctx.Err()
+	if err := b.run(ctx, chromedp.Navigate("about:blank")); err != nil {
+		b.reset()
+		return fmt.Errorf("%w: 无法启动浏览器: %s", ErrBrowser, err.Error())
 	}
 	return nil
 }
@@ -328,19 +321,10 @@ func (b *browserTransport) run(ctx context.Context, actions ...chromedp.Action) 
 	if b.ctx == nil {
 		return fmt.Errorf("%w: 浏览器没有启动", ErrBrowser)
 	}
-	runCtx, cancel := context.WithCancel(b.ctx)
-	defer cancel()
-	stop := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			cancel()
-		case <-stop:
-		case <-runCtx.Done():
-		}
-	}()
-	defer close(stop)
-	return chromedp.Run(runCtx, actions...)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return chromedp.Run(b.ctx, actions...)
 }
 
 func (b *browserTransport) reset() {

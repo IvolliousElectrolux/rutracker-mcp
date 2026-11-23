@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/chromedp/cdproto v0.0.0-20250403032234-65de8f5d025b
 	github.com/chromedp/chromedp v0.13.6
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	golang.org/x/net v0.58.0
@@ -12,6 +13,11 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.4 // indirect
+	github.com/chromedp/sysutil v1.1.0 // indirect
+	github.com/go-json-experiment/json v0.0.0-20250211171154-1ae217ad3535 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
