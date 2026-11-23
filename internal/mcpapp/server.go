@@ -243,6 +243,8 @@ func explain(err error) error {
 		return fmt.Errorf("没有找到这个主题, 或文件列表为空")
 	case errors.Is(err, rutracker.ErrTooLarge):
 		return fmt.Errorf("种子大于 32MB, 已拒绝保存")
+	case errors.Is(err, rutracker.ErrBrowser):
+		return fmt.Errorf("浏览器没有通过 Cloudflare: %s", err.Error())
 	case errors.Is(err, rutracker.ErrMirror):
 		return fmt.Errorf("RuTracker 镜像暂时不可用: %s", err.Error())
 	default:

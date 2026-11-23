@@ -19,6 +19,8 @@ var (
 	ErrTooLarge = errors.New("torrent is larger than 32MB")
 	// ErrBaseURL means RUTRACKER_BASE_URL is not an https URL.
 	ErrBaseURL = errors.New("base URL must be an https URL with a host")
+	// ErrBrowser means the local browser could not pass Cloudflare.
+	ErrBrowser = errors.New("browser could not pass Cloudflare")
 	// ErrBadName means a download file name is not safe to join onto the download directory.
 	ErrBadName = errors.New("download file name is not safe")
 )

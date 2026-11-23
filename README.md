@@ -22,8 +22,12 @@ stdout 只留给 MCP. 启动失败和运行日志写到 stderr.
 - `RUTRACKER_COOKIE_FILE`: 会话保存路径. 默认 `%USERPROFILE%\.rutracker-mcp\cookies.json`.
 - `RUTRACKER_BASE_URL`: 站点根地址. 为空时在 `https://rutracker.org/forum/` 和 `https://rutracker.net/forum/` 之间失败切换. 国内建议固定为 `https://rutracker.net/forum/`.
 - `RUTRACKER_PROXY`: `http`, `https` 或 `socks5`. 这是本机进程, 代理写 `127.0.0.1`, 不要写 `host.docker.internal`.
-- `RUTRACKER_USER_AGENT`: 可选, 覆盖默认浏览器 UA.
+- `RUTRACKER_USER_AGENT`: 可选, 覆盖直接连接时的 UA. 走本机浏览器时不使用这项.
+- `RUTRACKER_BROWSER`: 本机 Chrome 或 Edge 的路径. 为空时自动查找. 设为 `off` 则改回直接连接.
+- `RUTRACKER_BROWSER_HEADLESS`: 设为 `1` 时浏览器不显示窗口. 默认会打开窗口, 以便 Cloudflare 的检查在真实浏览器里通过并自动续期.
 - `RUTRACKER_DOWNLOAD_DIR`: `.torrent` 目录. 默认 `%USERPROFILE%\.rutracker-mcp\torrents`.
+
+搜索, 登录和下载默认交给本机 Chrome 或 Edge, 代理仍使用 `RUTRACKER_PROXY`. 浏览器配置在 `%USERPROFILE%\.rutracker-mcp\browser`. `cf_clearance` 过期后, 下一次请求会让这个浏览器再过一遍检查, 不需要把 cookie 贴回 `mcp.json`.
 
 ## Cursor
 

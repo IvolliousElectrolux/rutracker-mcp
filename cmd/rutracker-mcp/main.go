@@ -36,6 +36,8 @@ func main() {
 		CookieFile: cfg.CookieFile,
 		UserAgent:  cfg.UserAgent,
 		Proxy:      cfg.Proxy,
+		Browser:    cfg.Browser,
+		Headless:   cfg.Headless,
 	})
 	if err != nil {
 		exitErr(err)

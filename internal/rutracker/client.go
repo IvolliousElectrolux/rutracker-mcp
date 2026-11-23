@@ -38,6 +38,8 @@ type Options struct {
 	CookieFile string
 	UserAgent  string
 	Proxy      string
+	Browser    string
+	Headless   bool
 }
 
 // Client talks to one or two RuTracker forum mirrors.
@@ -67,6 +69,13 @@ func New(opts Options) (*Client, error) {
 	transport, err := proxyTransport(opts.Proxy)
 	if err != nil {
 		return nil, err
+	}
+	if !strings.EqualFold(strings.TrimSpace(opts.Browser), "off") {
+		browserTransport, err := newBrowserTransport(opts)
+		if err != nil {
+			return nil, err
+		}
+		transport = browserTransport
 	}
 	ua := strings.TrimSpace(opts.UserAgent)
 	if ua == "" {

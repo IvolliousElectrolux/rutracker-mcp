@@ -19,6 +19,8 @@ type Config struct {
 	UserAgent   string
 	Proxy       string
 	DownloadDir string
+	Browser     string
+	Headless    bool
 }
 
 // Load reads RUTRACKER_* variables. An empty base URL means mirror failover.
@@ -31,6 +33,8 @@ func Load() (Config, error) {
 		UserAgent: strings.TrimSpace(os.Getenv("RUTRACKER_USER_AGENT")),
 		BaseURL:   strings.TrimSpace(os.Getenv("RUTRACKER_BASE_URL")),
 		Proxy:     strings.TrimSpace(os.Getenv("RUTRACKER_PROXY")),
+		Browser:   strings.TrimSpace(os.Getenv("RUTRACKER_BROWSER")),
+		Headless:  headlessEnabled(os.Getenv("RUTRACKER_BROWSER_HEADLESS")),
 	}
 
 	cfg.CookieFile = strings.TrimSpace(os.Getenv("RUTRACKER_COOKIE_FILE"))
@@ -64,6 +68,15 @@ func Load() (Config, error) {
 // HasPassword reports whether both login fields are set.
 func (c Config) HasPassword() bool {
 	return c.Username != "" && c.Password != ""
+}
+
+func headlessEnabled(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 func checkProxy(raw string) error {
