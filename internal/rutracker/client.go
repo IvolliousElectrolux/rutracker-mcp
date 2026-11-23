@@ -1,7 +1,6 @@
 package rutracker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,7 +18,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/proxy"
 )
 
@@ -52,6 +50,7 @@ type Client struct {
 	password   string
 	cookieFile string
 	userAgent  string
+	solver     Solver
 	mu         sync.Mutex
 }
 
@@ -229,61 +228,6 @@ func (c *Client) ensure(ctx context.Context, base *url.URL) error {
 	return c.login(ctx, base)
 }
 
-func (c *Client) login(ctx context.Context, base *url.URL) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.username == "" || c.password == "" {
-		return ErrNoCredentials
-	}
-	form := url.Values{}
-	form.Set("login_username", c.username)
-	form.Set("login_password", c.password)
-	form.Set("login", loginSubmit)
-	body, err := encodeForm(form)
-	if err != nil {
-		return err
-	}
-	target, err := endpointRaw(base, "login.php", "")
-	if err != nil {
-		return err
-	}
-	req, err := c.newRequest(ctx, http.MethodPost, target, strings.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", base.String())
-
-	loginHTTP := &http.Client{
-		Jar:       c.jar,
-		Timeout:   requestTimeout,
-		Transport: c.http.Transport,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	resp, err := loginHTTP.Do(req)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		}
-		return fmt.Errorf("%w: %s", ErrMirror, err.Error())
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 500 {
-		return fmt.Errorf("%w: HTTP %d", ErrMirror, resp.StatusCode)
-	}
-	if sessionIssued(resp) {
-		c.saveCookies(base)
-		return nil
-	}
-	payload, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return err
-	}
-	return classifyLogin(payload)
-}
-
 func sessionIssued(resp *http.Response) bool {
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == sessionCookieName && cookie.Value != "" {
@@ -291,20 +235,6 @@ func sessionIssued(resp *http.Response) bool {
 		}
 	}
 	return false
-}
-
-func classifyLogin(payload []byte) error {
-	if len(payload) == 0 {
-		return ErrLogin
-	}
-	doc, err := goquery.NewDocumentFromReader(decode1251(bytes.NewReader(payload)))
-	if err != nil {
-		return ErrLogin
-	}
-	if doc.Find("img[src*='captcha'], input[name='cap_sid'], input[name='cap_code'], input[name*='cap_code'], input[name*='captcha']").Length() > 0 {
-		return ErrCaptcha
-	}
-	return ErrLogin
 }
 
 func (c *Client) sessionValue(base *url.URL) string {

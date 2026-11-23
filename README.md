@@ -16,8 +16,9 @@ stdout 只留给 MCP. 启动失败和运行日志写到 stderr.
 
 启动时必须有账号密码, 或 cookie. 否则进程直接退出.
 
-- `RUTRACKER_USERNAME` / `RUTRACKER_PASSWORD`: 登录表单. 遇到验证码时这次登录会失败.
-- `RUTRACKER_COOKIE`: 浏览器里的 `bb_session=...`. 出现验证码时改用这项.
+- `RUTRACKER_USERNAME` / `RUTRACKER_PASSWORD`: 登录表单. 站点要求图片验证码时, 主程序把图片交给同目录的 `rutracker-ocr.exe`. 识别使用 ddddocr 的 `common.onnx`, 只认字母和数字, 然后提交 `cap_sid` 和 `cap_code_*`. 最多试 3 次.
+- `RUTRACKER_COOKIE`: 浏览器里的 `bb_session=...`. 自动识别仍失败时改用这项.
+- `RUTRACKER_OCR`: 可选. 识别程序的绝对路径. 为空时使用主程序旁边的 `rutracker-ocr.exe`.
 - `RUTRACKER_COOKIE_FILE`: 会话保存路径. 默认 `%USERPROFILE%\.rutracker-mcp\cookies.json`.
 - `RUTRACKER_BASE_URL`: 站点根地址. 为空时在 `https://rutracker.org/forum/` 和 `https://rutracker.net/forum/` 之间失败切换. 国内建议固定为 `https://rutracker.net/forum/`.
 - `RUTRACKER_PROXY`: `http`, `https` 或 `socks5`. 这是本机进程, 代理写 `127.0.0.1`, 不要写 `host.docker.internal`.
@@ -49,6 +50,8 @@ stdout 只留给 MCP. 启动失败和运行日志写到 stderr.
 
 不需要代理时删掉 `RUTRACKER_PROXY`. 不要把它留成空字符串.
 
+`dist` 里要同时有 `rutracker-mcp.exe` 和 `rutracker-ocr.exe`, 放在同一目录. `command` 只指向主程序.
+
 ## 编译
 
-推送到 GitHub 后, Actions 在 Ubuntu 上交叉编译 Windows amd64 的 `rutracker-mcp.exe`, 并上传 artifact. 本机不要运行 `go build` 或 `go test`. 语法和 gofmt 也在 Actions 里检查.
+推送到 GitHub 后, Actions 在 Ubuntu 上交叉编译 Windows amd64 的 `rutracker-mcp.exe` 和 `rutracker-ocr.exe`, 并上传 artifact. 验证码模型在 Action 里下载, 不进 git. 本机不要运行 `go build` 或 `go test`. 语法和 gofmt 也在 Actions 里检查.

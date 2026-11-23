@@ -40,6 +40,9 @@ func main() {
 	if err != nil {
 		exitErr(err)
 	}
+	if cfg.HasPassword() {
+		rutracker.WarmOCR()
+	}
 	if err := mcpapp.Run(context.Background(), client, cfg.DownloadDir); err != nil && !cleanStop(err) {
 		exitErr(err)
 	}

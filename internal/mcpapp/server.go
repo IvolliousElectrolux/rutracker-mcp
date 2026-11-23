@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/IvolliousElectrolux/rutracker-mcp/internal/rutracker"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -226,7 +227,12 @@ func (s *service) download(ctx context.Context, _ *mcp.CallToolRequest, in topic
 func explain(err error) error {
 	switch {
 	case errors.Is(err, rutracker.ErrCaptcha):
-		return fmt.Errorf("RuTracker 要求验证码, 请把浏览器里的 bb_session 写到 RUTRACKER_COOKIE")
+		detail := strings.TrimPrefix(err.Error(), rutracker.ErrCaptcha.Error())
+		detail = strings.TrimPrefix(detail, ": ")
+		if detail == "" {
+			return fmt.Errorf("RuTracker 要求验证码. 请确认 rutracker-ocr.exe 与主程序在同一目录, 或改用 RUTRACKER_COOKIE")
+		}
+		return fmt.Errorf("RuTracker 验证码没有通过: %s", detail)
 	case errors.Is(err, rutracker.ErrNoCredentials):
 		return fmt.Errorf("没有可用的登录信息, 请设置账号密码或 RUTRACKER_COOKIE")
 	case errors.Is(err, rutracker.ErrSession):

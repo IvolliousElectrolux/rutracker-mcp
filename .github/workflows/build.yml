@@ -86,7 +86,154 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rutracker-mcp-windows-amd64
+          name: rutracker-mcp-go
           path: dist/rutracker-mcp.exe
           if-no-files-found: error
           retention-days: 1
+
+  ocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu,x86_64-pc-windows-gnu
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ocr
+
+      - uses: actions/cache@v4
+        with:
+          path: ocr/model
+          key: ddddocr-common-33b5cd35-json-093a9ba5
+
+      - name: Download ddddocr model
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, urllib.request
+          root = pathlib.Path("ocr/model")
+          root.mkdir(parents=True, exist_ok=True)
+          rev = "90d0d9bf95d92c3d2109c8b911261b0c01c9fd71"
+          files = {
+              "common.onnx": "33b5cd351ee94e73a6bf8fa18c415ed8b819b3ffd342e267c30d8ad8334e34e8",
+              "common.json": "093a9ba5dbfea32e3a76c2149103fc68cfda8405401e30286a68254b6cb67c51",
+          }
+
+          def fetch(url):
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              return urllib.request.urlopen(req, timeout=180).read()
+
+          for name, digest in files.items():
+              path = root / name
+              if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == digest:
+                  print("cached", name)
+                  continue
+              url = f"https://github.com/86maid/ddddocr/raw/{rev}/model/{name}"
+              print("download", url)
+              data = fetch(url)
+              got = hashlib.sha256(data).hexdigest()
+              if got != digest:
+                  raise SystemExit(f"hash mismatch {name}: {got}")
+              path.write_bytes(data)
+              print("wrote", name, len(data))
+          PY
+
+      - name: Check rustfmt
+        run: |
+          set +e
+          cargo fmt --all --manifest-path ocr/Cargo.toml
+          echo "----- rustfmt diff -----"
+          git diff -- ocr
+          status=0
+          if [ -n "$(git diff --name-only -- ocr)" ]; then
+            status=1
+          fi
+          echo "----- rustfmt exit ${status} -----"
+          exit ${status}
+
+      - name: Build Linux helper
+        run: cargo build --manifest-path ocr/Cargo.toml --release --target x86_64-unknown-linux-gnu
+
+      - name: Smoke test captcha helper
+        run: |
+          bin_path="$(find . -type f -path '*x86_64-unknown-linux-gnu/release/rutracker-ocr' | head -n 1)"
+          echo "helper ${bin_path}"
+          test -n "${bin_path}"
+          HELPER="${bin_path}" python3 - <<'PY'
+          import json, os, subprocess, sys
+          bin_path = os.environ["HELPER"]
+          image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          job = json.dumps({"image": image}) + "\n"
+          proc = subprocess.run(["timeout", "180", bin_path], input=job.encode(), capture_output=True)
+          sys.stderr.write(proc.stderr.decode("utf-8", "replace"))
+          text = proc.stdout.decode("utf-8", "replace")
+          print(text)
+          if proc.returncode != 0:
+              sys.exit(proc.returncode or 1)
+          lines = [ln for ln in text.splitlines() if ln.strip()]
+          if len(lines) < 2 or '"ready"' not in lines[0]:
+              sys.exit("helper did not become ready")
+          reply = json.loads(lines[-1])
+          print("reply", reply)
+          if "error" not in reply and "text" not in reply:
+              sys.exit("helper reply has neither text nor error")
+          PY
+
+      - name: Install mingw
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
+
+      - name: Build Windows helper
+        run: |
+          cargo build --manifest-path ocr/Cargo.toml --release --target x86_64-pc-windows-gnu
+          found="$(find . -type f -name rutracker-ocr.exe | head -n 1)"
+          echo "found ${found}"
+          test -n "${found}"
+          mkdir -p dist
+          cp "${found}" dist/rutracker-ocr.exe
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rutracker-ocr-windows
+          path: dist/rutracker-ocr.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    needs: [windows, ocr]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: parts
+
+      - name: Assemble
+        run: |
+          mkdir -p dist
+          find parts -type f -print
+          cp parts/rutracker-mcp-go/rutracker-mcp.exe dist/rutracker-mcp.exe
+          cp parts/rutracker-ocr-windows/rutracker-ocr.exe dist/rutracker-ocr.exe
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rutracker-mcp-windows-amd64
+          path: |
+            dist/rutracker-mcp.exe
+            dist/rutracker-ocr.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Delete intermediate artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="rutracker-mcp-go" or .name=="rutracker-ocr-windows") | .id' | while read -r id; do
+            echo "delete artifact ${id}"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${id}"
+          done

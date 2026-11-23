@@ -7,8 +7,8 @@ var (
 	ErrMirror = errors.New("rutracker mirror is unavailable")
 	// ErrSession means the site sent the browser to the login page or returned a non-torrent body.
 	ErrSession = errors.New("rutracker session is missing or expired")
-	// ErrCaptcha means login stopped on a captcha challenge.
-	ErrCaptcha = errors.New("login requires a captcha; set RUTRACKER_COOKIE")
+	// ErrCaptcha means automatic captcha recognition did not produce a session.
+	ErrCaptcha = errors.New("login requires a captcha")
 	// ErrLogin means the site rejected the username and password.
 	ErrLogin = errors.New("login was rejected")
 	// ErrNoCredentials means this call has neither a session cookie nor a password.
