@@ -1,0 +1,92 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Go version
+        run: go version
+
+      - name: Tidy modules
+        run: |
+          set +e
+          go mod tidy
+          status=$?
+          echo "----- go mod tidy exit ${status} -----"
+          git diff -- go.mod go.sum || true
+          exit ${status}
+
+      - name: Check gofmt
+        run: |
+          set +e
+          echo "----- gofmt -d -----"
+          gofmt -d .
+          status=$?
+          echo "----- gofmt -l -----"
+          files=$(gofmt -l .)
+          printf '%s\n' "$files"
+          echo "----- gofmt exit ${status} -----"
+          if [ "$status" -ne 0 ] || [ -n "$files" ]; then
+            echo "gofmt check failed"
+            exit 1
+          fi
+
+      - name: Vet
+        run: |
+          set +e
+          go vet ./...
+          status=$?
+          echo "----- go vet exit ${status} -----"
+          exit ${status}
+
+      - name: Test
+        run: |
+          set +e
+          go test ./... -count=1
+          status=$?
+          echo "----- go test exit ${status} -----"
+          exit ${status}
+
+      - name: Build Windows exe
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          set +e
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o dist/rutracker-mcp.exe ./cmd/rutracker-mcp
+          status=$?
+          echo "----- go build exit ${status} -----"
+          ls -l dist || true
+          exit ${status}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rutracker-mcp-windows-amd64
+          path: dist/rutracker-mcp.exe
+          if-no-files-found: error
+          retention-days: 1
