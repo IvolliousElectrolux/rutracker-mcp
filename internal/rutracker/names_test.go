@@ -25,16 +25,41 @@ func TestDownloadFileNameUsesTopicID(t *testing.T) {
 
 func TestSanitizeFileName(t *testing.T) {
 	dir := t.TempDir()
-	keep := map[string]string{
-		"ok.torrent":                 "ok.torrent",
-		"a\x00b.torrent":             "ab.torrent",
-		`..\..\Windows\system.ini`:   "system.ini",
-		`foo/bar.torrent`:            "bar.torrent",
-		`C:\Windows\notepad.exe`:     "notepad.exe",
-		`../../etc/passwd`:           "passwd",
-		`....//....//windows/system32/cmd.exe`: "cmd.exe",
+	keep := []struct {
+		in   string
+		want string
+	}{
+		{
+			in:   "ok.torrent",
+			want: "ok.torrent",
+		},
+		{
+			in:   "a\x00b.torrent",
+			want: "ab.torrent",
+		},
+		{
+			in:   `..\..\Windows\system.ini`,
+			want: "system.ini",
+		},
+		{
+			in:   `foo/bar.torrent`,
+			want: "bar.torrent",
+		},
+		{
+			in:   `C:\Windows\notepad.exe`,
+			want: "notepad.exe",
+		},
+		{
+			in:   `../../etc/passwd`,
+			want: "passwd",
+		},
+		{
+			in:   `....//....//windows/system32/cmd.exe`,
+			want: "cmd.exe",
+		},
 	}
-	for name, want := range keep {
+	for _, tc := range keep {
+		name, want := tc.in, tc.want
 		clean, err := SanitizeFileName(name)
 		if err != nil {
 			t.Fatalf("%q: %v", name, err)
