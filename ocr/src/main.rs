@@ -1,6 +1,6 @@
 use std::io::{BufRead, Write};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use base64::Engine;
 use ddddocr::{CharsetRange, Ddddocr};
 use serde::Deserialize;
@@ -18,8 +18,8 @@ fn main() -> Result<()> {
     let charset: ddddocr::Charset = include_str!("../model/common.json")
         .parse()
         .context("parse charset")?;
-    let mut ocr = Ddddocr::new(include_bytes!("../model/common.onnx"), charset)
-        .context("load ocr model")?;
+    let mut ocr =
+        Ddddocr::new(include_bytes!("../model/common.onnx"), charset).context("load ocr model")?;
     ocr.set_ranges(CharsetRange::LowercaseUppercaseDigit);
     emit(&mut out, serde_json::json!({"ready": true}))?;
 
